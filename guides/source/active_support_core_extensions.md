@@ -559,6 +559,45 @@ NOTE: Defined in `active_support/core_ext/module/aliasing.rb`.
 
 [Module#alias_attribute]: https://api.rubyonrails.org/classes/Module.html#method-i-alias_attribute
 
+### Associations
+
+#### `alias_association`
+
+Models can have an ActiveRecord association with another model. You can alias a model assocation and have the reader and writer methods defined for you by using [`alias_association`][Module#alias_association]. The alias name is the first argument, and the existing assocation attribute is the second:
+
+```ruby
+class Patient < ApplicationRecord
+  has_many :tickets
+end
+
+class Ticket < ApplicationRecord
+  belongs_to :patient
+  alias_association :person, :patient
+end
+
+# You can refer to the patient column as "person".
+Ticket.first.patient == Ticket.first.person # true
+```
+
+This alias assocation can be particularly useful if you are using polymorphic associations and you want to refer to the polymorphic association with a friendlier name:
+
+```ruby
+class Ticket < ApplicationRecord
+  belongs_to :ticketable, polymorphic: true
+  alias_association :person, :ticketable
+end
+
+# This example:
+Ticket.create!(ticketable: some_person)
+
+# Can also be executed like this:
+Ticket.create!(person: some_person)
+```
+
+NOTE: Defined in `active_support/core_ext/module/aliasing.rb`.
+
+[Module#alias_association]: https://api.rubyonrails.org/classes/Module.html#method-i-alias_association
+
 #### Internal Attributes
 
 When you are defining an attribute in a class that is meant to be subclassed, name collisions are a risk. That's remarkably important for libraries.
