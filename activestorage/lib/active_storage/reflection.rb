@@ -4,6 +4,7 @@ module ActiveStorage
   module Reflection
     class HasAttachedReflection < ActiveRecord::Reflection::MacroReflection # :nodoc:
       def variant(name, transformations)
+        # Should this be NamedVariant.new(name:, transformations:, reflection:)
         named_variants[name] = NamedVariant.new(transformations)
       end
 

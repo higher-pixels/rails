@@ -143,6 +143,11 @@ class User < ActiveRecord::Base
     attachable.variant :method, resize_to_limit: [3, 3],
       preprocessed: :should_preprocessed?
   end
+  has_one_attached :avatar_with_create_on_attach do |attachable|
+    attachable.variant :thumb, resize_to_limit: [4, 4], create_on_attach: true
+  end
+
+
   has_one_attached :intro_video
   has_one_attached :name_pronunciation_audio
 
