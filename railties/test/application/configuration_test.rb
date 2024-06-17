@@ -919,7 +919,7 @@ module ApplicationTests
     end
 
 
-    test "secret_key_base is copied from config.secret_key_base when set" do
+    test "app.secret_key_base uses config.secret_key_base in development" do
       app_file "config/initializers/secret_token.rb", <<-RUBY
         Rails.application.config.secret_key_base = "3b7cd727ee24e8444053437c36cc66c3"
       RUBY
@@ -928,12 +928,13 @@ module ApplicationTests
       assert_equal "3b7cd727ee24e8444053437c36cc66c3", app.secret_key_base
     end
 
-    test "config.secret_key_base over-writes a blank app.secret_key_base" do
+    test "app.secret_key_base uses config.secret_key_base in production" do
+      remove_file "config/credentials.yml.enc"
       app_file "config/initializers/secret_token.rb", <<-RUBY
         Rails.application.config.secret_key_base = "iaminallyoursecretkeybase"
       RUBY
 
-      app "development"
+      app "production"
 
       assert_equal "iaminallyoursecretkeybase", app.secret_key_base
     end
@@ -4473,6 +4474,20 @@ module ApplicationTests
     test "run_after_transaction_callbacks_in_order_defined can be set via framework defaults" do
       remove_from_config '.*config\.load_defaults.*\n'
       add_to_config 'config.load_defaults "7.0"'
+      app_file "config/initializers/new_framework_defaults_7_1.rb", <<-RUBY
+        Rails.application.config.active_record.run_after_transaction_callbacks_in_order_defined = true
+      RUBY
+      app "development"
+
+      assert_equal true, ActiveRecord.run_after_transaction_callbacks_in_order_defined
+    end
+
+    test "run_after_transaction_callbacks_in_order_defined can be set via framework defaults even if Active Record was previously loaded" do
+      remove_from_config '.*config\.load_defaults.*\n'
+      add_to_config 'config.load_defaults "7.0"'
+      app_file "config/initializers/01_configure_database.rb", <<-RUBY
+        ActiveRecord::Base.connected?
+      RUBY
       app_file "config/initializers/new_framework_defaults_7_1.rb", <<-RUBY
         Rails.application.config.active_record.run_after_transaction_callbacks_in_order_defined = true
       RUBY
