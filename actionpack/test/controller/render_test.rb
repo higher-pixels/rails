@@ -2,6 +2,7 @@
 
 require "abstract_unit"
 require "controller/fake_models"
+require "support/etag_helper"
 
 class TestControllerWithExtraEtags < ActionController::Base
   self.view_paths = [ActionView::FixtureResolver.new(
@@ -176,6 +177,11 @@ class TestController < ActionController::Base
 
   def conditional_hello_with_expires_in_with_stale_if_error
     expires_in 1.minute, public: true, stale_if_error: 5.minutes
+    render action: "hello_world"
+  end
+
+  def conditional_hello_with_expires_in_with_immutable
+    expires_in 1.minute, public: true, immutable: true
     render action: "hello_world"
   end
 
@@ -442,6 +448,11 @@ class ExpiresInRenderTest < ActionController::TestCase
     assert_equal "max-age=60, public, stale-if-error=300", @response.headers["Cache-Control"]
   end
 
+  def test_expires_in_header_with_immutable
+    get :conditional_hello_with_expires_in_with_immutable
+    assert_equal "max-age=60, public, immutable", @response.headers["Cache-Control"]
+  end
+
   def test_expires_in_header_with_additional_headers
     get :conditional_hello_with_expires_in_with_public_with_more_keys
     assert_equal "max-age=60, public, s-maxage=18000", @response.headers["Cache-Control"]
@@ -656,6 +667,7 @@ end
 class EtagRenderTest < ActionController::TestCase
   tests TestControllerWithExtraEtags
   include TemplateModificationHelper
+  include EtagHelper
 
   def test_strong_etag
     @request.if_none_match = strong_etag(["strong", "ab", :cde, [:f]])
@@ -728,15 +740,6 @@ class EtagRenderTest < ActionController::TestCase
       assert_not_equal etag, @response.etag
     end
   end
-
-  private
-    def weak_etag(record)
-      "W/#{strong_etag record}"
-    end
-
-    def strong_etag(record)
-      %("#{ActiveSupport::Digest.hexdigest(ActiveSupport::Cache.expand_cache_key(record))}")
-    end
 end
 
 class NamespacedEtagRenderTest < ActionController::TestCase

@@ -58,6 +58,11 @@ NOTE: If you need to apply configuration directly to a class, use a [lazy load h
 
 Below are the default values associated with each target version. In cases of conflicting values, newer versions take precedence over older versions.
 
+#### Default Values for Target Version 8.0
+
+- [`config.action_dispatch.strict_freshness`](#config-action-dispatch-strict-freshness): `true`
+- [`config.active_support.to_time_preserves_timezone`](#config-active-support-to-time-preserves-timezone): `:zone`
+
 #### Default Values for Target Version 7.2
 
 - [`config.active_job.enqueue_after_transaction_commit`](#config-active-job-enqueue-after-transaction-commit): `:default`
@@ -154,10 +159,10 @@ Below are the default values associated with each target version. In cases of co
 
 #### Default Values for Target Version 5.0
 
-- [`ActiveSupport.to_time_preserves_timezone`](#activesupport-to-time-preserves-timezone): `true`
 - [`config.action_controller.forgery_protection_origin_check`](#config-action-controller-forgery-protection-origin-check): `true`
 - [`config.action_controller.per_form_csrf_tokens`](#config-action-controller-per-form-csrf-tokens): `true`
 - [`config.active_record.belongs_to_required_by_default`](#config-active-record-belongs-to-required-by-default): `true`
+- [`config.active_support.to_time_preserves_timezone`](#config-active-support-to-time-preserves-timezone): `:offset`
 - [`config.ssl_options`](#config-ssl-options): `{ hsts: { subdomains: true } }`
 
 ### Rails General Configuration
@@ -1708,6 +1713,12 @@ The default value depends on the `config.load_defaults` target version:
 | (original)            | `true`               |
 | 7.1                   | `false`              |
 
+#### `config.active_record.encryption.compressor`
+
+Sets the compressor used by Active Record Encryption. The default value is `Zlib`.
+
+You can use your own compressor by setting this to a class that responds to `deflate` and `inflate`.
+
 #### `config.active_record.protocol_adapters`
 
 When using a URL to configure the database connection, this option provides a mapping from the protocol to the underlying
@@ -2105,6 +2116,20 @@ Setting the value to `:none` configures Action Pack raise all exceptions.
 | --------------------- | --------------------- |
 | (original)            | `true`                |
 | 7.1                   | `:all`                |
+
+### `config.action_dispatch.strict_freshness`
+
+Configures whether the `ActionDispatch::ETag` middleware should prefer the `ETag` header over the `Last-Modified` header when both are present in the response.
+
+If set to `true`, when both headers are present only the `ETag` is considered as specificed by RFC 7232 section 6.
+
+If set to `false`, when both headers are present, both headers are checked and both need to match for the response to be considered fresh.
+
+| Starting with version | The default value is  |
+| --------------------- | --------------------- |
+| (original)            | `false`               |
+| 8.0                   | `true`                |
+
 
 #### `ActionDispatch::Callbacks.before`
 
@@ -2694,6 +2719,18 @@ The default value depends on the `config.load_defaults` target version:
 | (original)            | `false`              |
 | 7.0                   | `true`               |
 
+#### `config.active_support.to_time_preserves_timezone`
+
+Specifies whether `to_time` methods preserve the UTC offset of their receivers or preserves the timezone. If set to `:zone`, `to_time` methods will use the timezone of their receivers. If set to `:offset`, `to_time` methods will use the UTC offset. If `false`, `to_time` methods will convert to the local system UTC offset instead.
+
+The default value depends on the `config.load_defaults` target version:
+
+| Starting with version | The default value is |
+| --------------------- | -------------------- |
+| (original)            | `false`              |
+| 5.0                   | `:offset`            |
+| 8.0                   | `:zone`              |
+
 #### `ActiveSupport::Logger.silencer`
 
 Is set to `false` to disable the ability to silence logging in a block. The default is `true`.
@@ -2701,17 +2738,6 @@ Is set to `false` to disable the ability to silence logging in a block. The defa
 #### `ActiveSupport::Cache::Store.logger`
 
 Specifies the logger to use within cache store operations.
-
-#### `ActiveSupport.to_time_preserves_timezone`
-
-Specifies whether `to_time` methods preserve the UTC offset of their receivers. If `false`, `to_time` methods will convert to the local system UTC offset instead.
-
-The default value depends on the `config.load_defaults` target version:
-
-| Starting with version | The default value is |
-| --------------------- | -------------------- |
-| (original)            | `false`              |
-| 5.0                   | `true`               |
 
 #### `ActiveSupport.utc_to_local_returns_utc_offset_times`
 

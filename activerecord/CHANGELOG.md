@@ -1,3 +1,58 @@
+*   `ActiveRecord::Encryption::Encryptor` now supports a `:compressor` option to customize the compression algorithm used.
+
+    ```ruby
+    module ZstdCompressor
+      def self.deflate(data)
+        Zstd.compress(data)
+      end
+
+      def self.inflate(data)
+        Zstd.decompress(data)
+      end
+    end
+
+    class User
+      encrypts :name, compressor: ZstdCompressor
+    end
+    ```
+
+    You disable compression by passing `compress: false`.
+
+    ```ruby
+    class User
+      encrypts :name, compress: false
+    end
+    ```
+
+    *heka1024*
+
+*   Add condensed `#inspect` for `ConnectionPool`, `AbstractAdapter`, and
+    `DatabaseConfig`.
+
+    *Hartley McGuire*
+
+*   Add `.shard_keys`, `.sharded?`, & `.connected_to_all_shards` methods.
+
+    ```ruby
+    class ShardedBase < ActiveRecord::Base
+        self.abstract_class = true
+
+        connects_to shards: {
+          shard_one: { writing: :shard_one },
+          shard_two: { writing: :shard_two }
+        }
+    end
+
+    class ShardedModel < ShardedBase
+    end
+
+    ShardedModel.shard_keys => [:shard_one, :shard_two]
+    ShardedModel.sharded? => true
+    ShardedBase.connected_to_all_shards { ShardedModel.current_shard } => [:shard_one, :shard_two]
+    ```
+
+    *Nony Dutton*
+
 *   Optimize `Relation#exists?` when records are loaded and the relation has no conditions.
 
     This can avoid queries in some cases.
