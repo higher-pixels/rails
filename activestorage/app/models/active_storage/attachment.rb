@@ -33,7 +33,8 @@ class ActiveStorage::Attachment < ActiveStorage::Record
   delegate_missing_to :blob
   delegate :signed_id, to: :blob
 
-  after_create_commit :mirror_blob_later, :analyze_blob_later, :transform_variants_later, :transform_variants_now
+  after_create_commit :mirror_blob_later, :analyze_blob_later, :transform_variants_later
+  after_create_commit :transform_variants_now, prepend: true
   after_destroy_commit :purge_dependent_blob_later
 
   ##
