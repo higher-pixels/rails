@@ -5,12 +5,12 @@ class ActiveStorage::NamedVariant # :nodoc:
 
   def initialize(options)
     @preprocessed      = options[:preprocessed]
-    @generation_option = options[:generation]
-    @transformations   = options.except(:preprocessed, :generation)
+    @process_option    = options[:process]
+    @transformations   = options.except(:preprocessed, :process)
   end
 
-  def generation(record)
-    return @generation_option if @generation_option
+  def process(record)
+    return @process_option if @process_option
     preprocessed?(record) ? :delayed : :on_demand
   end
 

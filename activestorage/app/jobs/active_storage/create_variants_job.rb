@@ -6,9 +6,9 @@ class ActiveStorage::CreateVariantsJob < ActiveStorage::BaseJob
   discard_on ActiveRecord::RecordNotFound
   retry_on ActiveStorage::IntegrityError, attempts: 10, wait: :polynomially_longer
 
-  def perform(blob, transformations:, generate:)
+  def perform(blob, transformations:, process:)
     @blob = blob
-    @generate = generate
+    @process = process
 
     @blob.preview({}).processed if preview_image_needed?
 
@@ -19,7 +19,7 @@ class ActiveStorage::CreateVariantsJob < ActiveStorage::BaseJob
 
   private
     def perform_method
-      (@generate == :immediate) ? :perform_now : :perform_later
+      (@process == :immediate) ? :perform_now : :perform_later
     end
 
     def preview_image_needed?

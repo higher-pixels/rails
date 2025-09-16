@@ -138,7 +138,7 @@ class ActiveStorage::Attachment < ActiveStorage::Record
       delayed_transformations = []
 
       named_variants.each do |_name, named_variant|
-        case named_variant.generation(record)
+        case named_variant.process(record)
         when :immediate
           immediate_transformations << named_variant.transformations
         when :delayed
@@ -146,8 +146,8 @@ class ActiveStorage::Attachment < ActiveStorage::Record
         end
       end
 
-      ActiveStorage::CreateVariantsJob.perform_now(blob, transformations: immediate_transformations, generate: :immediate) if immediate_transformations.any?
-      ActiveStorage::CreateVariantsJob.perform_later(blob, transformations: delayed_transformations, generate: :delayed) if delayed_transformations.any?
+      ActiveStorage::CreateVariantsJob.perform_now(blob, transformations: immediate_transformations, process: :immediate) if immediate_transformations.any?
+      ActiveStorage::CreateVariantsJob.perform_later(blob, transformations: delayed_transformations, process: :delayed) if delayed_transformations.any?
     end
 
     def purge_dependent_blob_later

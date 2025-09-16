@@ -253,7 +253,7 @@ class ActiveStorage::AttachmentTest < ActiveSupport::TestCase
     def assert_create_variants_job(blob:, transformation:, &block)
       assert_enqueued_with(
         job: ActiveStorage::CreateVariantsJob,
-        args: [ blob, transformations: [transformation], generate: :delayed ], &block
+        args: [ blob, transformations: [transformation], process: :delayed ], &block
       )
     end
 end
