@@ -12,22 +12,22 @@ class ActiveStorage::CreateVariantsJobTest < ActiveJob::TestCase
     blob = create_file_blob(filename: "report.pdf", content_type: "application/pdf")
 
     assert_changes -> { blob.preview_image.attached? }, from: false, to: true do
-      ActiveStorage::CreateVariantsJob.perform_now blob, process: :delayed, transformations: @transformations
+      ActiveStorage::CreateVariantsJob.perform_now blob, process: :later, transformations: @transformations
     end
   end
 
-  test "enqueues individual transform jobs for each transformation when :delayed" do
+  test "enqueues individual transform jobs for each transformation when :later" do
     blob = create_file_blob
-    ActiveStorage::CreateVariantsJob.perform_now blob, process: :delayed, transformations: @transformations
+    ActiveStorage::CreateVariantsJob.perform_now blob, process: :later, transformations: @transformations
 
     @transformations.each do |transformation|
       assert_enqueued_with job: ActiveStorage::TransformJob, args: [ blob, transformation ]
     end
   end
 
-  test "does not transform when :delayed" do
+  test "does not transform when :later" do
     blob = create_file_blob
-    ActiveStorage::CreateVariantsJob.perform_now blob, process: :delayed, transformations: @transformations
+    ActiveStorage::CreateVariantsJob.perform_now blob, process: :later, transformations: @transformations
 
     @transformations.each do |transformation|
       assert_not blob.variant(transformation).send(:processed?)

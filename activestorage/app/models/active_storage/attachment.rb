@@ -135,19 +135,19 @@ class ActiveStorage::Attachment < ActiveStorage::Record
       return unless representable?
 
       immediate_transformations = []
-      delayed_transformations = []
+      later_transformations     = []
 
       named_variants.each do |_name, named_variant|
         case named_variant.process(record)
         when :immediate
           immediate_transformations << named_variant.transformations
-        when :delayed
-          delayed_transformations << named_variant.transformations
+        when :later
+          later_transformations << named_variant.transformations
         end
       end
 
       ActiveStorage::CreateVariantsJob.perform_now(blob, transformations: immediate_transformations, process: :immediate) if immediate_transformations.any?
-      ActiveStorage::CreateVariantsJob.perform_later(blob, transformations: delayed_transformations, process: :delayed) if delayed_transformations.any?
+      ActiveStorage::CreateVariantsJob.perform_later(blob, transformations: later_transformations, process: :later) if later_transformations.any?
     end
 
     def purge_dependent_blob_later

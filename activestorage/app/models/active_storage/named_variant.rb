@@ -11,7 +11,7 @@ class ActiveStorage::NamedVariant # :nodoc:
 
   def process(record)
     return @process_option if @process_option
-    preprocessed?(record) ? :delayed : :on_demand
+    preprocessed?(record) ? :later : :lazily
   end
 
   private

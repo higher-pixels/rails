@@ -195,15 +195,15 @@ class ActiveStorage::AttachmentTest < ActiveSupport::TestCase
   test "enqueues create variants job to delay transformations after attach" do
     blob = create_file_blob
     assert_create_variants_job blob:, transformation: { resize_to_limit: [2, 2] } do
-      @user.avatar_with_delayed_variants.attach blob
+      @user.avatar_with_later_variants.attach blob
     end
   end
 
-  test "avoids enqueuing create variants job when on_demand" do
+  test "avoids enqueuing create variants job when lazy" do
     blob = create_file_blob
 
     assert_no_enqueued_jobs only: ActiveStorage::CreateVariantsJob  do
-      @user.avatar_with_on_demand_variants.attach blob
+      @user.avatar_with_lazy_variants.attach blob
     end
   end
 
@@ -211,7 +211,7 @@ class ActiveStorage::AttachmentTest < ActiveSupport::TestCase
     unrepresentable_blob = create_blob(filename: "hello.txt")
 
     assert_no_enqueued_jobs only: ActiveStorage::CreateVariantsJob  do
-      @user.avatar_with_delayed_variants.attach unrepresentable_blob
+      @user.avatar_with_later_variants.attach unrepresentable_blob
     end
   end
 
@@ -253,7 +253,7 @@ class ActiveStorage::AttachmentTest < ActiveSupport::TestCase
     def assert_create_variants_job(blob:, transformation:, &block)
       assert_enqueued_with(
         job: ActiveStorage::CreateVariantsJob,
-        args: [ blob, transformations: [transformation], process: :delayed ], &block
+        args: [ blob, transformations: [transformation], process: :later ], &block
       )
     end
 end
