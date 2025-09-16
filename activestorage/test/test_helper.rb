@@ -130,13 +130,13 @@ class User < ActiveRecord::Base
     attachable.variant :thumb, resize_to_limit: [100, 100]
   end
   has_one_attached :avatar_with_immediate_variants do |attachable|
-    attachable.variant :immediate_thumb, resize_to_limit: [1, 1], generation: :immediate
+    attachable.variant :immediate_thumb, resize_to_limit: [1, 1], process: :immediate
   end
-  has_one_attached :avatar_with_delayed_variants do |attachable|
-    attachable.variant :delayed_thumb, resize_to_limit: [2, 2], generation: :delayed
+  has_one_attached :avatar_with_later_variants do |attachable|
+    attachable.variant :later_thumb, resize_to_limit: [2, 2], process: :later
   end
-  has_one_attached :avatar_with_on_demand_variants do |attachable|
-    attachable.variant :on_demand_thumb, resize_to_limit: [3, 3], generation: :on_demand
+  has_one_attached :avatar_with_lazy_variants do |attachable|
+    attachable.variant :lazy_thumb, resize_to_limit: [3, 3], process: :lazily
     attachable.variant :default_thumb, resize_to_limit: [4, 4]
   end
   has_one_attached :avatar_with_preprocessed do |attachable|
