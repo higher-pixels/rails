@@ -621,7 +621,7 @@ module ActionController
     #     })
     #
     #     params.permit(person: :contact).require(:person)
-    #     # => #<ActionController::Parameters {} permitted: true>
+    #     # => ActionController::ParameterMissing: param is missing or the value is empty or invalid: person
     #
     #     params.permit(person: { contact: :phone }).require(:person)
     #     # => #<ActionController::Parameters {"contact"=>#<ActionController::Parameters {"phone"=>"555-1234"} permitted: true>} permitted: true>
@@ -765,7 +765,7 @@ module ActionController
     #
     #     params = ActionController::Parameters.new(tags: ["rails", "parameters"])
     #     permitted = params.expect(tags: [])
-    #     permitted.permitted?      # => true
+    #     permitted                 # => ["rails", "parameters"]
     #     permitted.is_a?(Array)    # => true
     #     permitted.size            # => 2
     #
@@ -1287,9 +1287,6 @@ module ActionController
         keys - params.keys - always_permitted_parameters
       end
 
-      #
-      # --- Filtering ----------------------------------------------------------
-      #
       # This is a list of permitted scalar types that includes the ones supported in
       # XML and JSON requests.
       #

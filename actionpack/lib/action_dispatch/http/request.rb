@@ -25,7 +25,6 @@ module ActionDispatch
     include ActionDispatch::Http::FilterParameters
     include ActionDispatch::Http::URL
     include ActionDispatch::ContentSecurityPolicy::Request
-    include ActionDispatch::PermissionsPolicy::Request
     include Rack::Request::Env
 
     autoload :Session, "action_dispatch/request/session"
@@ -139,7 +138,7 @@ module ActionDispatch
 
     # Populate the HTTP method lookup cache.
     HTTP_METHODS.each { |method|
-      HTTP_METHOD_LOOKUP[method] = method.underscore.to_sym
+      HTTP_METHOD_LOOKUP[method] = method.downcase.tap { |m| m.tr!("-", "_") }.to_sym
     }
 
     alias raw_request_method request_method # :nodoc:
@@ -158,11 +157,17 @@ module ActionDispatch
     #
     #     request.route_uri_pattern # => "/:controller(/:action(/:id))(.:format)"
     def route_uri_pattern
-      get_header("action_dispatch.route_uri_pattern")
+      unless pattern = get_header("action_dispatch.route_uri_pattern")
+        route = get_header("action_dispatch.route")
+        return if route.nil?
+        pattern = route.path.spec.to_s
+        set_header("action_dispatch.route_uri_pattern", pattern)
+      end
+      pattern
     end
 
-    def route_uri_pattern=(pattern) # :nodoc:
-      set_header("action_dispatch.route_uri_pattern", pattern)
+    def route=(route) # :nodoc:
+      @env["action_dispatch.route"] = route
     end
 
     def routes # :nodoc:
@@ -243,8 +248,9 @@ module ActionDispatch
     #
     #     send_early_hints("link" => "</style.css>; rel=preload; as=style,</script.js>; rel=preload")
     #
-    # If you are using `javascript_include_tag` or `stylesheet_link_tag` the Early
-    # Hints headers are included by default if supported.
+    # If you are using {javascript_include_tag}[rdoc-ref:ActionView::Helpers::AssetTagHelper#javascript_include_tag]
+    # or {stylesheet_link_tag}[rdoc-ref:ActionView::Helpers::AssetTagHelper#stylesheet_link_tag]
+    # the Early Hints headers are included by default if supported.
     def send_early_hints(links)
       env["rack.early_hints"]&.call(links)
     end

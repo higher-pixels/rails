@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON https://guides.rubyonrails.org.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.rubyonrails.org>.**
 
 Upgrading Ruby on Rails
 =======================
@@ -54,7 +54,7 @@ You can find a list of all released Rails gems [here](https://rubygems.org/gems/
 
 ### The Update Task
 
-Rails provides the `rails app:update` command. After updating the Rails version
+Rails provides the `bin/rails app:update` command. After updating the Rails version
 in the `Gemfile`, run this command.
 This will help you with the creation of new files and changes of old files in an
 interactive session.
@@ -75,7 +75,7 @@ Don't forget to review the difference, to see if there were any unexpected chang
 
 The new Rails version might have different configuration defaults than the previous version. However, after following the steps described above, your application would still run with configuration defaults from the *previous* Rails version. That's because the value for `config.load_defaults` in `config/application.rb` has not been changed yet.
 
-To allow you to upgrade to new defaults one by one, the update task has created a file `config/initializers/new_framework_defaults_X.Y.rb` (with the desired Rails version in the filename). You should enable the new configuration defaults by uncommenting them in the file; this can be done gradually over several deployments. Once your application is ready to run with new defaults, you can remove this file and flip the `config.load_defaults` value.
+To allow you to upgrade to new defaults one by one, the update task has created a file `config/initializers/new_framework_defaults_X_Y.rb` (with the desired Rails version in the filename). You should enable the new configuration defaults by uncommenting them in the file; this can be done gradually over several deployments. Once your application is ready to run with new defaults, you can remove this file and flip the `config.load_defaults` value.
 
 Upgrading from Rails 8.0 to Rails 8.1
 -------------------------------------
@@ -103,6 +103,60 @@ In Rails 7.2, all tests will respect the `queue_adapter` config if provided. Thi
 set the `queue_adapter` config to something other than `:test`, but written tests in a way that was dependent on the `TestAdapter`.
 
 If no config is provided, the `TestAdapter` will continue to be used.
+
+### `alias_attribute` now bypasses custom methods on the original attribute
+
+In Rails 7.2, `alias_attribute` now bypasses custom methods defined on the original attribute and directly accesses the underlying database value. This change was announced via deprecation warnings in Rails 7.1.
+
+**Before (Rails 7.1):**
+
+```ruby
+class User < ActiveRecord::Base
+  def email
+    "custom_#{super}"
+  end
+
+  alias_attribute :username, :email
+end
+
+user = User.create!(email: "test@example.com")
+user.username
+# => "custom_test@example.com"
+```
+
+**After (Rails 7.2):**
+
+```ruby
+user = User.create!(email: "test@example.com")
+user.username
+# => "test@example.com"  # Raw database value
+```
+
+If you received the deprecation warning "Since Rails 7.2 `#{method_name}` will not be calling `#{target_name}` anymore", you should manually define the alias method:
+
+```ruby
+class User < ActiveRecord::Base
+  def email
+    "custom_#{super}"
+  end
+
+  def username
+    email  # This will call the custom email method
+  end
+end
+```
+
+Alternatively, you can use `alias_method`:
+
+```ruby
+class User < ActiveRecord::Base
+  def email
+    "custom_#{super}"
+  end
+
+  alias_method :username, :email
+end
+```
 
 Upgrading from Rails 7.0 to Rails 7.1
 -------------------------------------
@@ -251,7 +305,7 @@ config.action_mailer.preview_paths << "#{Rails.root}/lib/mailer_previews"
 
 ### `config.i18n.raise_on_missing_translations = true` now raises on any missing translation.
 
-Previously it would only raise when called in a view or controller. Now it will raise anytime `I18n.t` is provided an unrecognised key.
+Previously it would only raise when called in a view or controller. Now it will raise anytime `I18n.t` is provided an unrecognized key.
 
 ```ruby
 # with config.i18n.raise_on_missing_translations = true
@@ -264,7 +318,7 @@ I18n.t("missing.key") # didn't raise in 7.0, raises in 7.1
 I18n.t("missing.key") # didn't raise in 7.0, raises in 7.1
 ```
 
-If you don't want this behaviour, you can set `config.i18n.raise_on_missing_translations = false`:
+If you don't want this behavior, you can set `config.i18n.raise_on_missing_translations = false`:
 
 ```ruby
 # with config.i18n.raise_on_missing_translations = false
@@ -277,7 +331,7 @@ I18n.t("missing.key") # didn't raise in 7.0, doesn't raise in 7.1
 I18n.t("missing.key") # didn't raise in 7.0, doesn't raise in 7.1
 ```
 
-Alternatively, you can customise the `I18n.exception_handler`.
+Alternatively, you can customize the `I18n.exception_handler`.
 See the [i18n guide](https://guides.rubyonrails.org/v7.1/i18n.html#using-different-exception-handlers) for more information.
 
 `AbstractController::Translation.raise_on_missing_translations` has been removed. This was a private API, if you were
@@ -365,6 +419,12 @@ versions, there are two scenarios to consider:
     config.active_record.encryption.hash_digest_class = OpenSSL::Digest::SHA1
     ```
 
+    If all of your data was encrypted non-deterministicly (the default unless `encrypts` is passed `deterministic: true`, you can instead configure SHA-256 for Active Record Encryption as in scenario 2 below and also allow columns previously encrypted with SHA-1 to be decrypted by setting:
+
+    ```ruby
+    config.active_record.encryption.support_sha1_for_non_deterministic_encryption = true
+    ```
+
 2. If you have `config.active_support.key_generator_hash_digest_class` configured as SHA-256 (the new default
    in 7.0), then you need to configure SHA-256 for Active Record Encryption:
 
@@ -387,7 +447,7 @@ by the aforementioned bug, this configuration should be enabled:
 config.active_record.encryption.support_sha1_for_non_deterministic_encryption = true
 ```
 
-If you are working with encrypted data, please carefully review the above.
+**If you are working with encrypted data, please carefully review the above.**
 
 ### New ways to handle exceptions in Controller Tests, Integration Tests, and System Tests
 
@@ -401,7 +461,7 @@ Rails 7.1 changes the acceptable values from `true` and `false` to `:all`, `:res
 * `:rescuable` - render HTML error pages for exceptions declared by [`config.action_dispatch.rescue_responses`](/configuring.html#config-action-dispatch-rescue-responses)
 * `:none` (equivalent to `false`) - do not rescue from any exceptions
 
-Applications generated by Rails 7.1 or later set `config.action_dispatch.show_exceptions = :rescuable` in their `config/environments/test.rb`. When upgrading, existing applications can change `config.action_dispatch.show_exceptions = :rescuable` to utilize the new behavior, or replace the old values with the corresponding new ones (`true` replaces `:all`, `false` replaces `:none`).
+Applications generated by Rails 7.1 or later set `config.action_dispatch.show_exceptions = :rescuable` in their `config/environments/test.rb`. When upgrading, existing applications can change `config.action_dispatch.show_exceptions = :rescuable` to utilize the new behavior, or replace the old values with the corresponding new ones (`:all` replaces `true`, `:none` replaces `false`).
 
 Upgrading from Rails 6.1 to Rails 7.0
 -------------------------------------
@@ -746,7 +806,7 @@ You can invalidate the cache either by touching the product, or changing the cac
 Rails 7.0 changed some default values for some column types. To avoid that application upgrading from 6.1 to 7.0
 load the current schema using the new 7.0 defaults, Rails now includes the version of the framework in the schema dump.
 
-Before loading the schema for the first time in Rails 7.0, make sure to run `rails app:update` to ensure that the
+Before loading the schema for the first time in Rails 7.0, make sure to run `bin/rails app:update` to ensure that the
 version of the schema is included in the schema dump.
 
 The schema file will look like this:
@@ -2145,9 +2205,10 @@ If your application currently depends on MultiJSON directly, you have a few opti
 
 2. Migrate away from MultiJSON by using `obj.to_json`, and `JSON.parse(str)` instead.
 
-WARNING: Do not simply replace `MultiJson.dump` and `MultiJson.load` with
-`JSON.dump` and `JSON.load`. These JSON gem APIs are meant for serializing and
-deserializing arbitrary Ruby objects and are generally [unsafe](https://ruby-doc.org/stdlib-2.2.2/libdoc/json/rdoc/JSON.html#method-i-load).
+WARNING: Do not simply replace `MultiJson.load` with
+`JSON.load` as that API is meant for deserializing arbitrary Ruby objects and
+is generally [unsafe](https://docs.ruby-lang.org/en/master/JSON.html#method-i-load).
+Prefer to use `JSON.parse`.
 
 #### JSON gem compatibility
 
@@ -2170,7 +2231,7 @@ end
 ```irb
 irb> FooBar.new.to_json
 => "{\"foo\":\"bar\"}"
-irb> JSON.generate(FooBar.new, quirks_mode: true)
+irb> JSON.generate(FooBar.new)
 => "\"#<FooBar:0x007fa80a481610>\""
 ```
 
@@ -2476,7 +2537,7 @@ being used, you can update your form to use the `PUT` method instead:
 <%= form_for [ :update_name, @user ], method: :put do |f| %>
 ```
 
-For more on PATCH and why this change was made, see [this post](https://weblog.rubyonrails.org/2012/2/26/edge-rails-patch-is-the-new-primary-http-method-for-updates/)
+For more on PATCH and why this change was made, see [this post](https://rubyonrails.org/2012/2/26/edge-rails-patch-is-the-new-primary-http-method-for-updates)
 on the Rails blog.
 
 #### A note about media types

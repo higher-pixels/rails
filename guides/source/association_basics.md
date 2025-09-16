@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON https://guides.rubyonrails.org.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.rubyonrails.org>.**
 
 Active Record Associations
 ==========================
@@ -75,7 +75,7 @@ value when creating the book.
 @book = Book.create(author_id: @author.id, published_at: Time.now)
 ```
 
-To delete an author and ensure all their books are also deleted, you need to
+To delete an author and ensure all their books are also deleted, you'd need to
 retrieve all the author's `books`, loop through each `book` to destroy it, and
 then destroy the author.
 
@@ -217,7 +217,7 @@ then you should use `has_one` instead.
 
 When used alone, `belongs_to` produces a one-directional one-to-one
 relationship. Therefore each book in the above example "knows" its author, but
-the authors don't know about their books. To setup a [bi-directional
+the authors don't know about their books. To set up a [bi-directional
 association](#bi-directional-associations) - use `belongs_to` in combination
 with a `has_one` or `has_many` on the other model, in this case the Author
 model.
@@ -560,7 +560,7 @@ the associated object's foreign key to the same value.
 
 The `build_association` method returns a new object of the associated type. This
 object will be instantiated from the passed attributes, and the link through
-this objects foreign key will be set, but the associated object will _not_ yet
+this object's foreign key will be set, but the associated object will _not_ yet
 be saved.
 
 ```ruby
@@ -953,7 +953,7 @@ object, use the `collection.build` method.
 A [`has_many :through`][`has_many`] association is often used to set up a
 many-to-many relationship with another model. This association indicates that
 the declaring model can be matched with zero or more instances of another model
-by proceeding _through_ a third model.
+by proceeding _through_ an intermediate "join" model.
 
 For example, consider a medical practice where patients make appointments to see
 physicians. The relevant association declarations could look like this:
@@ -978,6 +978,9 @@ end
 `has_many :through` establishes a many-to-many relationship between models,
 allowing instances of one model (Physician) to be associated with multiple
 instances of another model (Patient) through a third "join" model (Appointment).
+
+We call `Physician.appointments` and `Appointment.patient` the _through_ and
+_source_ associations of `Physician.patients`, respectively.
 
 ![has_many :through Association
 Diagram](images/association_basics/has_many_through.png)
@@ -1011,6 +1014,10 @@ In this migration the `physicians` and `patients` tables are created with a
 `name` column. The `appointments` table, which acts as the join table, is
 created with `physician_id` and `patient_id` columns, establishing the
 many-to-many relationship between `physicians` and `patients`.
+
+INFO: The through association can be any type of association, including other
+through associations, but it cannot be [polymorphic](#polymorphic-associations).
+Source associations can be polymorphic as long as you provide a source type.
 
 You could also consider using a [composite primary
 key](active_record_composite_primary_keys.html) for the join table in the
@@ -1122,6 +1129,9 @@ end
 This setup allows a `supplier` to directly access its `account_history` through
 its `account`.
 
+We call `Supplier.account` and `Account.account_history` the _through_ and
+_source_ associations of `Supplier.account_history`, respectively.
+
 ![has_one :through Association
 Diagram](images/association_basics/has_one_through.png)
 
@@ -1149,6 +1159,11 @@ class CreateAccountHistories < ActiveRecord::Migration[8.1]
   end
 end
 ```
+
+INFO: The through association must be a `has_one`, `has_one :through`, or
+non-polymorphic `belongs_to`. That is, a non-polymorphic singular association.
+On the other hand, source associations can be polymorphic as long as you provide
+a source type.
 
 ### `has_and_belongs_to_many`
 
@@ -1395,8 +1410,8 @@ specified on the associated model, the associated object _will_ be saved.
 @assembly = @part.assemblies.create({ assembly_name: "Transmission housing" })
 ```
 
-Does the same as `collection.create`, but raises `ActiveRecord::RecordInvalid`
-if the record is invalid.
+`collection.create!` does the same as `collection.create`, but raises
+`ActiveRecord::RecordInvalid` if the record is invalid.
 
 The [`collection.reload`][] method returns a Relation of all of the associated
 objects, forcing a database read. If there are no associated objects, it returns
@@ -1599,7 +1614,7 @@ Similarly, you can retrieve a collection of pictures from an instance of the
 Additionally, if you have an instance of the `Picture` model, you can get its
 parent via `@picture.imageable`, which could be an `Employee` or a `Product`.
 
-To setup a polymorphic association manually you would need to declare both a
+To set up a polymorphic association manually you would need to declare both a
 foreign key column (`imageable_id`) and a type column (`imageable_type`) in the
 model:
 
@@ -1623,7 +1638,7 @@ In our example, `imageable_id` could be the ID of either an `Employee` or a
 either `Employee` or `Product`.
 
 While creating the polymorphic association manually is acceptable, it is instead
-recommended to use `t.references` or its alias `t.belong_to` and specify
+recommended to use `t.references` or its alias `t.belongs_to` and specify
 `polymorphic: true` so that Rails knows that the association is polymorphic, and
 it automatically adds both the foreign key and type columns to the table.
 
@@ -1660,7 +1675,7 @@ instructed otherwise.
 If you're working with composite primary keys in your Rails models and need to
 ensure the correct handling of associations, please refer to the [Associations
 section of the Composite Primary Keys
-guide](active_record_composite_primary_keys#associations-between-models-with-composite-primary-keys).
+guide](active_record_composite_primary_keys.html#associations-between-models-with-composite-primary-keys).
 This section provides comprehensive guidance on setting up and using
 associations with composite primary keys in Rails, including how to specify
 composite foreign keys when necessary.
@@ -1768,7 +1783,7 @@ Next, we generate the `Car`, `Motorcycle`, and `Bicycle` models that inherit
 from Vehicle. These models won't have their own tables; instead, they will use
 the `vehicles` table.
 
-To generate the`Car` model:
+To generate the `Car` model:
 
 ```bash
 $ bin/rails generate model car --parent=Vehicle
@@ -1869,7 +1884,7 @@ end
 class Car < Vehicle
 end
 
-Car.create
+Car.create(color: "Red", price: 10000)
 # => #<Car kind: "Car", color: "Red", price: 10000>
 ```
 
@@ -1890,7 +1905,7 @@ class Vehicle < ApplicationRecord
   self.inheritance_column = nil
 end
 
-Vehicle.create!(type: "Car")
+Vehicle.create!(type: "Car", color: "Red", price: 10000)
 # => #<Vehicle type: "Car", color: "Red", price: 10000>
 ```
 
@@ -1914,8 +1929,7 @@ includes all attributes of all subclasses in a single table.
 
 A disadvantage of this approach is that it can result in table bloat, as the
 table will include attributes specific to each subclass, even if they aren't
-used by others. This can be solved by using [`Delegated
-Types`](#delegated-types).
+used by others. This can be solved by using [`Delegated Types`](#delegated-types).
 
 Additionally, if you’re using [polymorphic
 associations](#polymorphic-associations), where a model can belong to more than
@@ -2052,7 +2066,7 @@ Entry.create! entryable: Message.new(subject: "hello!")
 
 We can enhance our `Entry` delegator by defining `delegate` and using
 polymorphism on the subclasses. For example, to delegate the `title` method from
-`Entry` to it's subclasses:
+`Entry` to its subclasses:
 
 ```ruby
 class Entry < ApplicationRecord
@@ -2579,6 +2593,9 @@ class Book < ApplicationRecord
 end
 ```
 
+This option is not supported in polymorphic associations, since in that case the
+class name of the associated record is stored in the type column.
+
 #### `:dependent`
 
 Controls what happens to the associated object when its owner is destroyed:
@@ -2770,7 +2787,7 @@ The `:association_foreign_key` can be found on a `has_and_belongs_to_many`
 relationship. By convention, Rails assumes that the column in the join table
 used to hold the foreign key pointing to the other model is the name of that
 model with the suffix `_id` added. The `:association_foreign_key` option lets
-you set the name of the foreign key directly For example:
+you set the name of the foreign key directly. For example:
 
 ```ruby
 class User < ApplicationRecord
@@ -2789,6 +2806,17 @@ setting up a many-to-many self-join.
 The `:join_table` can be found on a `has_and_belongs_to_many` relationship. If
 the default name of the join table, based on lexical ordering, is not what you
 want, you can use the `:join_table` option to override the default.
+
+#### `:deprecated`
+
+If true, Active Record warns every time the association is used.
+
+Three reporting modes are supported (`:warn`, `:raise`, and `:notify`), and
+backtraces can be enabled or disabled. Defaults are `:warn` mode and disabled
+backtraces.
+
+Please, check the documentation of `ActiveRecord::Associations::ClassMethods`
+for further details.
 
 ### Scopes
 
@@ -3110,7 +3138,7 @@ class Author < ApplicationRecord
 end
 ```
 
-By default, querying `@auth books.size` results in a database call to perform a
+By default, querying `author.books.size` results in a database call to perform a
 `COUNT(*)` query. To optimize this, you can add a counter cache to the
 _belonging_ model (in this case, `Book`). This way, Rails can return the count
 directly from the cache without querying the database.
@@ -3301,4 +3329,4 @@ end
 In this example, the `find_and_log` method performs a query on the association
 and logs the query details using the owner's logger. The method accesses the
 owner's logger via `proxy_association.owner` and the association's name via
-`proxy_association.reflection`.name.
+`proxy_association.reflection.name`.

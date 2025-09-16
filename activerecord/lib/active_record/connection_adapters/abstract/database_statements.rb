@@ -55,12 +55,15 @@ module ActiveRecord
       # can be used to query the database repeatedly.
       def cacheable_query(klass, arel) # :nodoc:
         if prepared_statements
+          collector = collector()
+          collector.retryable = true
           sql, binds = visitor.compile(arel.ast, collector)
-          query = klass.query(sql)
+          query = klass.query(sql, retryable: collector.retryable)
         else
           collector = klass.partial_query_collector
+          collector.retryable = true
           parts, binds = visitor.compile(arel.ast, collector)
-          query = klass.partial_query(parts)
+          query = klass.partial_query(parts, retryable: collector.retryable)
         end
         [query, binds]
       end
@@ -351,7 +354,7 @@ module ActiveRecord
       #  :args: (requires_new: nil, isolation: nil, &block)
       def transaction(requires_new: nil, isolation: nil, joinable: true, &block)
         if !requires_new && current_transaction.joinable?
-          if isolation
+          if isolation && current_transaction.isolation != isolation
             raise ActiveRecord::TransactionIsolationError, "cannot set isolation when joining a transaction"
           end
           yield current_transaction.user_transaction
@@ -499,20 +502,6 @@ module ActiveRecord
         "DEFAULT VALUES"
       end
 
-      # Sanitizes the given LIMIT parameter in order to prevent SQL injection.
-      #
-      # The +limit+ may be anything that can evaluate to a string via #to_s. It
-      # should look like an integer, or an Arel SQL literal.
-      #
-      # Returns Integer and Arel::Nodes::SqlLiteral limits as is.
-      def sanitize_limit(limit)
-        if limit.is_a?(Integer) || limit.is_a?(Arel::Nodes::SqlLiteral)
-          limit
-        else
-          Integer(limit)
-        end
-      end
-
       # Fixture value is quoted by Arel, however scalar values
       # are not quotable. In this case we want to convert
       # the column value to YAML.
@@ -547,19 +536,33 @@ module ActiveRecord
         cast_result(internal_execute(...))
       end
 
+      def default_insert_value(column) # :nodoc:
+        DEFAULT_INSERT_VALUE
+      end
+
       private
+        DEFAULT_INSERT_VALUE = Arel.sql("DEFAULT").freeze
+        private_constant :DEFAULT_INSERT_VALUE
+
         # Lowest level way to execute a query. Doesn't check for illegal writes, doesn't annotate queries, yields a native result object.
         def raw_execute(sql, name = nil, binds = [], prepare: false, async: false, allow_retry: false, materialize_transactions: true, batch: false)
           type_casted_binds = type_casted_binds(binds)
-          log(sql, name, binds, type_casted_binds, async: async) do |notification_payload|
+          log(sql, name, binds, type_casted_binds, async: async, allow_retry: allow_retry) do |notification_payload|
             with_raw_connection(allow_retry: allow_retry, materialize_transactions: materialize_transactions) do |conn|
-              perform_query(conn, sql, binds, type_casted_binds, prepare: prepare, notification_payload: notification_payload, batch: batch)
+              result = ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+                perform_query(conn, sql, binds, type_casted_binds, prepare: prepare, notification_payload: notification_payload, batch: batch)
+              end
+              handle_warnings(result, sql)
+              result
             end
           end
         end
 
         def perform_query(raw_connection, sql, binds, type_casted_binds, prepare:, notification_payload:, batch:)
           raise NotImplementedError
+        end
+
+        def handle_warnings(raw_result, sql)
         end
 
         # Receive a native adapter result object and returns an ActiveRecord::Result object.
@@ -597,13 +600,6 @@ module ActiveRecord
           end
         end
 
-        DEFAULT_INSERT_VALUE = Arel.sql("DEFAULT").freeze
-        private_constant :DEFAULT_INSERT_VALUE
-
-        def default_insert_value(column)
-          DEFAULT_INSERT_VALUE
-        end
-
         def build_fixture_sql(fixtures, table_name)
           columns = schema_cache.columns_hash(table_name).reject { |_, column| supports_virtual_columns? && column.virtual? }
 
@@ -617,8 +613,8 @@ module ActiveRecord
 
             columns.map do |name, column|
               if fixture.key?(name)
-                type = lookup_cast_type_from_column(column)
-                with_yaml_fallback(type.serialize(fixture[name]))
+                # TODO: Remove fetch_cast_type and the need for connection after we release 8.1.
+                with_yaml_fallback(column.fetch_cast_type(self).serialize(fixture[name]))
               else
                 default_insert_value(column)
               end

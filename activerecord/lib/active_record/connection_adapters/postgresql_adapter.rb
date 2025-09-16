@@ -25,7 +25,7 @@ module ActiveRecord
     #
     # The PostgreSQL adapter works with the native C (https://github.com/ged/ruby-pg) driver.
     #
-    # Options:
+    # ==== Options
     #
     # * <tt>:host</tt> - Defaults to a Unix-domain socket in /tmp. On machines without Unix-domain sockets,
     #   the default is to connect to localhost.
@@ -349,6 +349,7 @@ module ActiveRecord
         @lock.synchronize do
           return false unless @raw_connection
           @raw_connection.query ";"
+          verified!
         end
         true
       rescue PG::Error
@@ -394,10 +395,6 @@ module ActiveRecord
         super
         @raw_connection&.socket_io&.reopen(IO::NULL) rescue nil
         @raw_connection = nil
-      end
-
-      def native_database_types # :nodoc:
-        self.class.native_database_types
       end
 
       def self.native_database_types # :nodoc:
@@ -520,7 +517,7 @@ module ActiveRecord
             type.typname AS name,
             type.OID AS oid,
             n.nspname AS schema,
-            string_agg(enum.enumlabel, ',' ORDER BY enum.enumsortorder) AS value
+            array_agg(enum.enumlabel ORDER BY enum.enumsortorder) AS value
           FROM pg_enum AS enum
           JOIN pg_type AS type ON (type.oid = enum.enumtypid)
           JOIN pg_namespace n ON type.typnamespace = n.oid
@@ -615,7 +612,7 @@ module ActiveRecord
         }
       end
 
-      # Returns the configured supported identifier length supported by PostgreSQL
+      # Returns the configured maximum supported identifier length supported by PostgreSQL
       def max_identifier_length
         @max_identifier_length ||= query_value("SHOW max_identifier_length", "SCHEMA").to_i
       end
@@ -633,7 +630,11 @@ module ActiveRecord
       # Returns the version of the connected PostgreSQL server.
       def get_database_version # :nodoc:
         with_raw_connection do |conn|
-          conn.server_version
+          version = conn.server_version
+          if version == 0
+            raise ActiveRecord::ConnectionNotEstablished, "Could not determine PostgreSQL version"
+          end
+          version
         end
       end
       alias :postgresql_version :database_version
@@ -787,6 +788,8 @@ module ActiveRecord
         NOT_NULL_VIOLATION    = "23502"
         FOREIGN_KEY_VIOLATION = "23503"
         UNIQUE_VIOLATION      = "23505"
+        CHECK_VIOLATION       = "23514"
+        EXCLUSION_VIOLATION   = "23P01"
         SERIALIZATION_FAILURE = "40001"
         DEADLOCK_DETECTED     = "40P01"
         DUPLICATE_DATABASE    = "42P04"
@@ -818,6 +821,10 @@ module ActiveRecord
             RecordNotUnique.new(message, sql: sql, binds: binds, connection_pool: @pool)
           when FOREIGN_KEY_VIOLATION
             InvalidForeignKey.new(message, sql: sql, binds: binds, connection_pool: @pool)
+          when CHECK_VIOLATION
+            CheckViolation.new(message, sql: sql, binds: binds, connection_pool: @pool)
+          when EXCLUSION_VIOLATION
+            ExclusionViolation.new(message, sql: sql, binds: binds, connection_pool: @pool)
           when VALUE_LIMIT_VIOLATION
             ValueTooLong.new(message, sql: sql, binds: binds, connection_pool: @pool)
           when NUMERIC_VALUE_OUT_OF_RANGE

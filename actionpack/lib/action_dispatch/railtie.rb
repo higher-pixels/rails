@@ -55,8 +55,16 @@ module ActionDispatch
       ActionDispatch::Http::URL.secure_protocol = app.config.force_ssl
       ActionDispatch::Http::URL.tld_length = app.config.action_dispatch.tld_length
 
-      ActionDispatch::ParamBuilder.ignore_leading_brackets = app.config.action_dispatch.ignore_leading_brackets
-      ActionDispatch::QueryParser.strict_query_string_separator = app.config.action_dispatch.strict_query_string_separator
+      unless app.config.action_dispatch.domain_extractor.nil?
+        ActionDispatch::Http::URL.domain_extractor = app.config.action_dispatch.domain_extractor
+      end
+
+      unless app.config.action_dispatch.ignore_leading_brackets.nil?
+        ActionDispatch::ParamBuilder.ignore_leading_brackets = app.config.action_dispatch.ignore_leading_brackets
+      end
+      unless app.config.action_dispatch.strict_query_string_separator.nil?
+        ActionDispatch::QueryParser.strict_query_string_separator = app.config.action_dispatch.strict_query_string_separator
+      end
 
       ActiveSupport.on_load(:action_dispatch_request) do
         self.ignore_accept_header = app.config.action_dispatch.ignore_accept_header

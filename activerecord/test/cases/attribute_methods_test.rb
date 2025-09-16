@@ -1135,12 +1135,85 @@ class AttributeMethodsTest < ActiveRecord::TestCase
     assert_equal "New topic", topic.title_alias_to_be_undefined
   end
 
+  test "#define_attribute_methods doesn't connect to the database when schema cache is present" do
+    with_temporary_connection_pool do
+      if in_memory_db?
+        # Separate connections to an in-memory database create an entirely new database,
+        # with an empty schema etc, so we just stub out this schema on the fly.
+        ActiveRecord::Base.connection_pool.with_connection do |connection|
+          connection.create_table :tasks do |t|
+            t.datetime :starting
+            t.datetime :ending
+          end
+        end
+      end
+
+      @target.table_name = "tasks"
+
+      @target.connection_pool.schema_cache.load!
+      @target.connection_pool.schema_cache.add("tasks")
+      @target.connection_pool.disconnect!
+
+      assert_no_queries(include_schema: true) do
+        @target.define_attribute_methods
+      end
+    end
+  end
+
   test "define_attribute_method works with both symbol and string" do
     klass = Class.new(ActiveRecord::Base)
     klass.table_name = "foo"
 
     assert_nothing_raised { klass.define_attribute_method(:foo) }
     assert_nothing_raised { klass.define_attribute_method("bar") }
+  end
+
+  test "#method_missing define methods on the fly in a thread safe way" do
+    topic_class = Class.new(ActiveRecord::Base) do
+      self.table_name = "topics"
+    end
+
+    topic = topic_class.new(title: "New topic")
+    topic_class.undefine_attribute_methods
+    def topic.method_missing(...)
+      sleep 0.1 # required to cause a race condition
+      super
+    end
+
+    threads = 5.times.map do
+      Thread.new do
+        assert_equal "New topic", topic.title
+      end
+    end
+    threads.each(&:join)
+  ensure
+    threads&.each(&:kill)
+  end
+
+  test "#method_missing define methods on the fly in a thread safe way, even when decorated" do
+    topic_class = Class.new(ActiveRecord::Base) do
+      self.table_name = "topics"
+
+      def title
+        "title:#{super}"
+      end
+    end
+
+    topic = topic_class.new(title: "New topic")
+    topic_class.undefine_attribute_methods
+    def topic.method_missing(...)
+      sleep 0.1 # required to cause a race condition
+      super
+    end
+
+    threads = 5.times.map do
+      Thread.new do
+        assert_equal "title:New topic", topic.title
+      end
+    end
+    threads.each(&:join)
+  ensure
+    threads&.each(&:kill)
   end
 
   test "read_attribute with nil should not asplode" do

@@ -58,7 +58,7 @@ module ActionController
 
     module ClassMethods
       def make_response!(request)
-        if request.get_header("HTTP_VERSION") == "HTTP/1.0"
+        if (request.get_header("SERVER_PROTOCOL") || request.get_header("HTTP_VERSION")) == "HTTP/1.0"
           super
         else
           Live::Response.new.tap do |res|
@@ -275,16 +275,14 @@ module ActionController
       # This processes the action in a child thread. It lets us return the response
       # code and headers back up the Rack stack, and still process the body in
       # parallel with sending data to the client.
-      new_controller_thread {
+      new_controller_thread do
         ActiveSupport::Dependencies.interlock.running do
           t2 = Thread.current
 
           # Since we're processing the view in a different thread, copy the thread locals
           # from the main thread to the child thread. :'(
           locals.each { |k, v| t2[k] = v }
-          ActiveSupport::IsolatedExecutionState.share_with(t1)
-
-          begin
+          ActiveSupport::IsolatedExecutionState.share_with(t1) do
             super(name)
           rescue => e
             if @_response.committed?
@@ -301,14 +299,12 @@ module ActionController
               error = e
             end
           ensure
-            # Ensure we clean up any thread locals we copied so that the thread can reused.
-            ActiveSupport::IsolatedExecutionState.clear
-            locals.each { |k, _| t2[k] = nil }
+            clean_up_thread_locals(locals, t2)
 
             @_response.commit!
           end
         end
-      }
+      end
 
       ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
         @_response.await_commit
@@ -326,7 +322,8 @@ module ActionController
     # or other running data where you don't want the entire file buffered in memory
     # first. Similar to send_data, but where the data is generated live.
     #
-    # Options:
+    # #### Options:
+    #
     # *   `:filename` - suggests a filename for the browser to use.
     # *   `:type` - specifies an HTTP content type. You can specify either a string
     #     or a symbol for a registered type with `Mime::Type.register`, for example
@@ -374,6 +371,11 @@ module ActionController
           t2.abort_on_exception = true
           yield
         end
+      end
+
+      # Ensure we clean up any thread locals we copied so that the thread can reused.
+      def clean_up_thread_locals(locals, thread) # :nodoc:
+        locals.each { |k, _| thread[k] = nil }
       end
 
       def self.live_thread_pool_executor

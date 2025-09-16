@@ -57,13 +57,14 @@ module ActiveSupport
       "Caracas"                      => "America/Caracas",
       "La Paz"                       => "America/La_Paz",
       "Santiago"                     => "America/Santiago",
+      "Asuncion"                     => "America/Asuncion",
       "Newfoundland"                 => "America/St_Johns",
       "Brasilia"                     => "America/Sao_Paulo",
       "Buenos Aires"                 => "America/Argentina/Buenos_Aires",
       "Montevideo"                   => "America/Montevideo",
       "Georgetown"                   => "America/Guyana",
       "Puerto Rico"                  => "America/Puerto_Rico",
-      "Greenland"                    => "America/Godthab",
+      "Greenland"                    => "America/Nuuk",
       "Mid-Atlantic"                 => "Atlantic/South_Georgia",
       "Azores"                       => "Atlantic/Azores",
       "Cape Verde Is."               => "Atlantic/Cape_Verde",
@@ -312,6 +313,12 @@ module ActiveSupport
       @tzinfo = tzinfo || TimeZone.find_tzinfo(name)
     end
     # :startdoc:
+
+    # Returns a standard time zone name defined by IANA
+    # https://www.iana.org/time-zones
+    def standard_name
+      MAPPING[name] || name
+    end
 
     # Returns the offset of this time zone from UTC in seconds.
     def utc_offset

@@ -40,12 +40,15 @@ module ActiveSupport
   autoload :CodeGenerator
   autoload :ActionableError
   autoload :ConfigurationFile
+  autoload :ContinuousIntegration
   autoload :CurrentAttributes
   autoload :Dependencies
   autoload :DescendantsTracker
+  autoload :Editor
   autoload :ExecutionWrapper
   autoload :Executor
   autoload :ErrorReporter
+  autoload :EventReporter
   autoload :FileUpdateChecker
   autoload :EventedFileUpdateChecker
   autoload :ForkTracker
@@ -91,6 +94,10 @@ module ActiveSupport
   autoload :SafeBuffer, "active_support/core_ext/string/output_safety"
   autoload :TestCase
 
+  include Deprecation::DeprecatedConstantAccessor
+
+  deprecate_constant :Configurable, "class_attribute :config, default: {}", deprecator: ActiveSupport.deprecator
+
   def self.eager_load!
     super
 
@@ -99,9 +106,15 @@ module ActiveSupport
 
   cattr_accessor :test_order # :nodoc:
   cattr_accessor :test_parallelization_threshold, default: 50 # :nodoc:
+  cattr_accessor :parallelize_test_databases, default: true # :nodoc:
 
   @error_reporter = ActiveSupport::ErrorReporter.new
   singleton_class.attr_accessor :error_reporter # :nodoc:
+
+  @event_reporter = ActiveSupport::EventReporter.new
+  singleton_class.attr_accessor :event_reporter # :nodoc:
+
+  cattr_accessor :filter_parameters, default: [] # :nodoc:
 
   def self.cache_format_version
     Cache.format_version

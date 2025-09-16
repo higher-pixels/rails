@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "active_support/core_ext/enumerable"
-require "active_support/core_ext/module/delegation"
 require "active_support/parameter_filter"
 require "concurrent/map"
 
@@ -202,6 +201,17 @@ module ActiveRecord
         false
       end
 
+      # Intended to behave like `.current_preventing_writes` given the class name as input.
+      # See PoolConfig and ConnectionHandler::ConnectionDescriptor.
+      def self.preventing_writes?(class_name) # :nodoc:
+        connected_to_stack.reverse_each do |hash|
+          return hash[:prevent_writes] if !hash[:prevent_writes].nil? && hash[:klasses].include?(Base)
+          return hash[:prevent_writes] if !hash[:prevent_writes].nil? && hash[:klasses].any? { |klass| klass.name == class_name }
+        end
+
+        false
+      end
+
       def self.connected_to_stack # :nodoc:
         if connected_to_stack = ActiveSupport::IsolatedExecutionState[:active_record_connected_to_stack]
           connected_to_stack
@@ -266,7 +276,7 @@ module ActiveRecord
         return super if StatementCache.unsupported_value?(id)
 
         cached_find_by([primary_key], [id]) ||
-          raise(RecordNotFound.new("Couldn't find #{name} with '#{primary_key}'=#{id}", name, primary_key, id))
+          raise(RecordNotFound.new("Couldn't find #{name} with '#{primary_key}'=#{id.inspect}", name, primary_key, id))
       end
 
       def find_by(*args) # :nodoc:
@@ -347,6 +357,8 @@ module ActiveRecord
       def filter_attributes=(filter_attributes)
         @inspection_filter = nil
         @filter_attributes = filter_attributes
+
+        FilterAttributeHandler.sensitive_attribute_was_declared(self, filter_attributes)
       end
 
       def inspection_filter # :nodoc:
@@ -440,7 +452,7 @@ module ActiveRecord
               where(wheres).limit(1)
             }
 
-            statement.execute(values.flatten, connection, allow_retry: true).then do |r|
+            statement.execute(values.flatten, connection).then do |r|
               r.first
             rescue TypeError
               raise ActiveRecord::StatementInvalid
@@ -589,7 +601,7 @@ module ActiveRecord
     #
     #   topic = Topic.new(title: "Budget", author_name: "Jason")
     #   topic.slice(:title, :author_name)
-    #   => { "title" => "Budget", "author_name" => "Jason" }
+    #   # => { "title" => "Budget", "author_name" => "Jason" }
     #
     #--
     # Implemented by ActiveModel::Access#slice.
@@ -603,7 +615,7 @@ module ActiveRecord
     #
     #   topic = Topic.new(title: "Budget", author_name: "Jason")
     #   topic.values_at(:title, :author_name)
-    #   => ["Budget", "Jason"]
+    #   # => ["Budget", "Jason"]
     #
     #--
     # Implemented by ActiveModel::Access#values_at.
@@ -680,12 +692,14 @@ module ActiveRecord
     # Sets the record to strict_loading mode. This will raise an error
     # if the record tries to lazily load an association.
     #
+    # NOTE: Strict loading is disabled during validation in order to let the record validate its association.
+    #
     #   user = User.first
     #   user.strict_loading! # => true
     #   user.address.city
-    #   => ActiveRecord::StrictLoadingViolationError
+    #   # => ActiveRecord::StrictLoadingViolationError
     #   user.comments.to_a
-    #   => ActiveRecord::StrictLoadingViolationError
+    #   # => ActiveRecord::StrictLoadingViolationError
     #
     # ==== Parameters
     #
@@ -705,7 +719,7 @@ module ActiveRecord
     #   user.address.city # => "Tatooine"
     #   user.comments.to_a # => [#<Comment:0x00...]
     #   user.comments.first.ratings.to_a
-    #   => ActiveRecord::StrictLoadingViolationError
+    #   # => ActiveRecord::StrictLoadingViolationError
     def strict_loading!(value = true, mode: :all)
       unless [:all, :n_plus_one_only].include?(mode)
         raise ArgumentError, "The :mode option must be one of [:all, :n_plus_one_only] but #{mode.inspect} was provided."
@@ -727,11 +741,29 @@ module ActiveRecord
       @strict_loading_mode == :all
     end
 
-    # Marks this record as read only.
+    # Prevents records from being written to the database:
+    #
+    #   customer = Customer.new
+    #   customer.readonly!
+    #   customer.save # raises ActiveRecord::ReadOnlyRecord
     #
     #   customer = Customer.first
     #   customer.readonly!
-    #   customer.save # Raises an ActiveRecord::ReadOnlyRecord
+    #   customer.update(name: 'New Name') # raises ActiveRecord::ReadOnlyRecord
+    #
+    # Read-only records cannot be deleted from the database either:
+    #
+    #   customer = Customer.first
+    #   customer.readonly!
+    #   customer.destroy # raises ActiveRecord::ReadOnlyRecord
+    #
+    # Please, note that the objects themselves are still mutable in memory:
+    #
+    #   customer = Customer.new
+    #   customer.readonly!
+    #   customer.name = 'New Name' # OK
+    #
+    # but you won't be able to persist the changes.
     def readonly!
       @readonly = true
     end

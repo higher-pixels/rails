@@ -15,7 +15,6 @@ module ActiveStorage
   # * +Disk+, to manage attachments saved directly on the hard drive.
   # * +GCS+, to manage attachments through Google Cloud Storage.
   # * +S3+, to manage attachments through Amazon S3.
-  # * +AzureStorage+, to manage attachments through Microsoft Azure Storage.
   # * +Mirror+, to be able to use several services to manage attachments.
   #
   # Inside a \Rails application, you can set-up your services through the
@@ -146,6 +145,10 @@ module ActiveStorage
 
     def public?
       @public
+    end
+
+    def inspect # :nodoc:
+      "#<#{self.class}#{name.present? ? " name=#{name.inspect}" : ""}>"
     end
 
     private

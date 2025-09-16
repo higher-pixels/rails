@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON https://guides.rubyonrails.org.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.rubyonrails.org>.**
 
 Active Record and PostgreSQL
 ============================
@@ -516,6 +516,34 @@ irb> event.duration
 => 2 days
 ```
 
+### Timestamps
+
+* [Date/Time Types](https://www.postgresql.org/docs/current/datatype-datetime.html)
+
+Rails migrations with timestamps store the time a model was created or updated. By default and for legacy reasons, the columns use the `timestamp without time zone` data type.
+
+```ruby
+# db/migrate/20241220144913_create_devices.rb
+create_table :post, id: :uuid do |t|
+  t.datetime :published_at
+  # By default, Active Record will set the data type of this column to `timestamp without time zone`.
+end
+```
+
+While this works ok, [PostgreSQL best practices](https://wiki.postgresql.org/wiki/Don't_Do_This#Don.27t_use_timestamp_.28without_time_zone.29) recommend that `timestamp with time zone` is used instead for timezone-aware timestamps.
+This must be configured before it can be used for new migrations.
+
+To configure `timestamp with time zone` as your new timestamp default data type, place the following configuration in the `config/application.rb` file.
+
+```ruby
+# config/application.rb
+ActiveSupport.on_load(:active_record_postgresqladapter) do
+  self.datetime_type = :timestamptz
+end
+```
+
+With that configuration in place, generate and apply new migrations, then verify their timestamps use the `timestamp with time zone` data type.
+
 UUID Primary Keys
 -----------------
 
@@ -551,14 +579,14 @@ To use the Rails model generator for a table using UUID as the primary key, pass
 For example:
 
 ```bash
-$ rails generate model Device --primary-key-type=uuid kind:string
+$ bin/rails generate model Device --primary-key-type=uuid kind:string
 ```
 
 When building a model with a foreign key that will reference this UUID, treat
 `uuid` as the native field type, for example:
 
 ```bash
-$ rails generate model Case device_id:uuid
+$ bin/rails generate model Case device_id:uuid
 ```
 
 Indexing
@@ -808,3 +836,21 @@ For example, to exclude comments from your structure dump, add this to an initia
 ```ruby
 ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags = ["--no-comments"]
 ```
+
+Explain
+-------
+
+Along with the standard [`explain`][explain-options] options, the PostgreSQL adapter supports [`buffers`][explain-analayze-buffers].
+
+```ruby
+Company.where(id: owning_companies_ids).explain(:analyze, :buffers)
+#=> EXPLAIN (ANALYZE, BUFFERS) SELECT "companies".* FROM "companies"
+# ...
+# Seq Scan on companies  (cost=0.00..2.21 rows=3 width=64)
+# ...
+```
+
+See their documentation for more details.
+
+[explain-options]: active_record_querying.html#explain-options
+[explain-analayze-buffers]: https://www.postgresql.org/docs/current/sql-explain.html

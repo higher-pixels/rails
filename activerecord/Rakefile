@@ -31,6 +31,8 @@ task :test do
   run_without_aborting(*tasks)
 end
 
+adapters = %w( mysql2 trilogy postgresql sqlite3 sqlite3_mem )
+
 namespace :test do
   task :isolated do
     tasks = defined?(JRUBY_VERSION) ?
@@ -39,12 +41,24 @@ namespace :test do
     run_without_aborting(*tasks)
   end
 
+  desc "Run Active Job integration tests for all adapters"
+  task "integration:active_job" do
+    errors = []
+    adapters.each do |adapter|
+      Rake::Task["test:integration:active_job:#{adapter}"].invoke
+    rescue Exception
+      errors << adapter
+    end
+    abort "Errors running integration for #{errors.join(', ')}" if errors.any?
+  end
+
   Rake::TestTask.new(:arel) do |t|
     t.libs << "test"
     t.test_files = FileList["test/cases/arel/**/*_test.rb"]
 
     t.warning = true
     t.verbose = true
+    t.options = "--profile" if ENV["CI"]
   end
 end
 
@@ -56,7 +70,7 @@ namespace :db do
   task drop: ["db:mysql:drop", "db:postgresql:drop"]
 end
 
-%w( mysql2 trilogy postgresql sqlite3 sqlite3_mem ).each do |adapter|
+adapters.each do |adapter|
   namespace :test do
     Rake::TestTask.new(adapter => "#{adapter}:env") do |t|
       adapter_short = adapter[/^[a-z0-9]+/]
@@ -69,6 +83,7 @@ end
       t.test_files = files
       t.warning = true
       t.verbose = true
+      t.options = "--profile" if ENV["CI"]
       t.ruby_opts = ["--dev"] if defined?(JRUBY_VERSION)
     end
 
@@ -80,6 +95,7 @@ end
           t.test_files = FileList["test/activejob/*_test.rb"]
           t.warning = true
           t.verbose = true
+          t.options = "--profile" if ENV["CI"]
           t.ruby_opts = ["--dev"] if defined?(JRUBY_VERSION)
         end
       end
@@ -186,6 +202,7 @@ end
 
           t.warning = true
           t.verbose = true
+          t.options = "--profile" if ENV["CI"]
           t.ruby_opts = ["--dev"] if defined?(JRUBY_VERSION)
         end
       end

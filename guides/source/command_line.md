@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON https://guides.rubyonrails.org.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.rubyonrails.org>.**
 
 The Rails Command Line
 ======================
@@ -44,37 +44,6 @@ $ rails new my_app
 
 Rails will set up what seems like a huge amount of stuff for such a tiny command! We've got the entire Rails directory structure now with all the code we need to run our simple application right out of the box.
 
-If you wish to skip some files from being generated or skip some libraries, you can append any of the following arguments to your `rails new` command:
-
-| Argument                | Description                                              |
-|-------------------------|----------------------------------------------------------|
-| `--skip-git`            | Skip git init, .gitignore, and .gitattributes            |
-| `--skip-docker`         | Skip Dockerfile, .dockerignore and bin/docker-entrypoint |
-| `--skip-keeps`          | Skip source control .keep files                          |
-| `--skip-action-mailer`  | Skip Action Mailer files                                 |
-| `--skip-action-mailbox` | Skip Action Mailbox gem                                  |
-| `--skip-action-text`    | Skip Action Text gem                                     |
-| `--skip-active-record`  | Skip Active Record files                                 |
-| `--skip-active-job`     | Skip Active Job                                          |
-| `--skip-active-storage` | Skip Active Storage files                                |
-| `--skip-action-cable`   | Skip Action Cable files                                  |
-| `--skip-asset-pipeline` | Skip Asset Pipeline                                      |
-| `--skip-javascript`     | Skip JavaScript files                                    |
-| `--skip-hotwire`        | Skip Hotwire integration                                 |
-| `--skip-jbuilder`       | Skip jbuilder gem                                        |
-| `--skip-test`           | Skip test files                                          |
-| `--skip-system-test`    | Skip system test files                                   |
-| `--skip-bootsnap`       | Skip bootsnap gem                                        |
-| `--skip-dev-gems`       | Skip adding development gems                             |
-| `--skip-thruster`       | Skip Thruster setup                                      |
-| `--skip-rubocop`        | Skip RuboCop setup                                       |
-| `--skip-brakeman`       | Skip brakeman setup                                      |
-| `--skip-ci`             | Skip GitHub CI files                                     |
-| `--skip-kamal`          | Skip Kamal setup                                         |
-| `--skip-solid`          | Skip Solid Cache, Queue, and Cable setup                 |
-
-These are just some of the options that `rails new` accepts. For a full list of options, type `rails new --help`.
-
 ### Preconfigure a Different Database
 
 When creating a new Rails application, you have the option to specify what kind
@@ -99,7 +68,7 @@ Let's see what it put in our `config/database.yml`:
 # Install the pg driver:
 #   gem install pg
 # On macOS with Homebrew:
-#   gem install pg -- --with-pg-config=/usr/local/bin/pg_config
+#   gem install pg -- --with-pg-config=/opt/homebrew/bin/pg_config
 # On Windows:
 #   gem install pg
 #       Choose the win32 build.
@@ -123,6 +92,32 @@ development:
 ```
 
 It generated a database configuration corresponding to our choice of PostgreSQL.
+
+### Skipping Defaults
+
+If you wish to skip some files from being generated or skip some libraries
+entirely, you can pass one of the `--skip` arguments to the `rails new` command:
+
+```bash
+$ rails new sas --skip-active-storage
+Based on the specified options, the following options will also be activated:
+
+  --skip-action-mailbox [due to --skip-active-storage]
+  --skip-action-text [due to --skip-active-storage]
+
+      create
+      create  README.md
+      ...
+```
+
+In the above example, Action Mailbox and Action Text are skipped in addition to
+Active Storage because they depend on Active Storage functionality.
+
+For a full list of options (including what can be skipped), use `--help`:
+
+```bash
+$ rails new --help
+```
 
 Command Line Basics
 -------------------
@@ -483,9 +478,9 @@ You can even execute ruby code written in a file with runner.
 $ bin/rails runner lib/code_to_be_run.rb
 ```
 
-By default, `rails runner` scripts are automatically wrapped with the Rails Executor, which helps report uncaught exceptions for tasks like cron jobs.
+By default, `bin/rails runner` scripts are automatically wrapped with the Rails Executor, which helps report uncaught exceptions for tasks like cron jobs.
 
-Therefore, executing `rails runner lib/long_running_scripts.rb` is functionally equivalent to the following:
+Therefore, executing `bin/rails runner lib/long_running_scripts.rb` is functionally equivalent to the following:
 
 ```ruby
 Rails.application.executor.wrap do
@@ -493,7 +488,7 @@ Rails.application.executor.wrap do
 end
 ```
 
-You can opt out of this behaviour by using the `--skip-executor` option.
+You can opt out of this behavior by using the `--skip-executor` option.
 
 ```bash
 $ bin/rails runner --skip-executor lib/long_running_script.rb
@@ -555,6 +550,30 @@ If you want to clear `public/assets` completely, you can use `bin/rails assets:c
 The most common commands of the `db:` rails namespace are `migrate` and `create`, and it will pay off to try out all of the migration rails commands (`up`, `down`, `redo`, `reset`). `bin/rails db:version` is useful when troubleshooting, telling you the current version of the database.
 
 More information about migrations can be found in the [Migrations](active_record_migrations.html) guide.
+
+#### Switching to a Different Database Later
+
+After creating a new Rails application, you have the option to switch to any
+other supported database. For example, you might work with SQLite for a while and
+then decide to switch to PostgreSQL. In this case, you only need to run:
+
+```bash
+$ rails db:system:change --to=postgresql
+    conflict  config/database.yml
+Overwrite config/database.yml? (enter "h" for help) [Ynaqdhm] Y
+       force  config/database.yml
+        gsub  Gemfile
+        gsub  Gemfile
+...
+```
+
+And then install the missing gems:
+
+```bash
+$ bundle install
+...
+
+```
 
 ### `bin/rails notes`
 
@@ -668,7 +687,7 @@ vendor/tools.rb:
 
 INFO: A good description of unit testing in Rails is given in [A Guide to Testing Rails Applications](testing.html)
 
-Rails comes with a test framework called minitest. Rails owes its stability to the use of tests. The commands available in the `test:` namespace helps in running the different tests you will hopefully write.
+Rails comes with a test framework called minitest. Rails owes its stability to the use of tests. The commands available in the `test:` namespace help in running the different tests you will hopefully write.
 
 ### `bin/rails tmp:`
 

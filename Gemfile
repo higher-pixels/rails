@@ -45,12 +45,8 @@ gem "uri", ">= 0.13.1", require: false
 
 gem "prism"
 
-group :lint do
-  gem "syntax_tree", "6.1.1", require: false
-end
-
 group :rubocop do
-  gem "rubocop", ">= 1.25.1", require: false
+  gem "rubocop", "1.79.2", require: false
   gem "rubocop-minitest", require: false
   gem "rubocop-packaging", require: false
   gem "rubocop-performance", require: false
@@ -66,11 +62,13 @@ group :mdl do
 end
 
 group :doc do
-  gem "sdoc", git: "https://github.com/rails/sdoc.git", branch: "main"
-  gem "rdoc", "~> 6.7"
-  gem "redcarpet", "~> 3.2.3", platforms: :ruby
+  gem "sdoc"
+  gem "rdoc", "< 6.10"
+  gem "redcarpet", "~> 3.6.1", platforms: :ruby
   gem "w3c_validators", "~> 1.3.6"
   gem "rouge"
+  # Workaround until https://github.com/rouge-ruby/rouge/pull/2131 is merged and released
+  gem "cgi", require: false
   gem "rubyzip", "~> 2.0"
 end
 
@@ -103,7 +101,6 @@ group :job do
   gem "resque", require: false
   gem "resque-scheduler", require: false
   gem "sidekiq", require: false
-  gem "sucker_punch", require: false
   gem "queue_classic", ">= 4.0.0", require: false, platforms: :ruby
   gem "sneakers", require: false
   gem "backburner", require: false
@@ -117,14 +114,13 @@ group :cable do
 
   gem "redis-namespace"
 
-  gem "websocket-client-simple", github: "matthewd/websocket-client-simple", branch: "close-race", require: false
+  gem "websocket-client-simple", require: false
 end
 
 # Active Storage
 group :storage do
   gem "aws-sdk-s3", require: false
   gem "google-cloud-storage", "~> 1.11", require: false
-  gem "azure-storage-blob", "~> 2.0", require: false
 
   gem "image_processing", "~> 1.2"
 end
@@ -132,7 +128,6 @@ end
 # Action Mailbox
 gem "aws-sdk-sns", require: false
 gem "webmock"
-gem "httpclient", github: "nahi/httpclient", branch: "master", require: false
 
 # Add your own local bundler stuff.
 local_gemfile = File.expand_path(".Gemfile", __dir__)
@@ -150,6 +145,7 @@ group :test do
 
   # Needed for Railties tests because it is included in generated apps.
   gem "brakeman"
+  gem "bundler-audit"
 end
 
 platforms :ruby, :windows do

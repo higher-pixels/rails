@@ -39,6 +39,8 @@ DEFAULT_PLUGIN_FILES = %w(
   test/dummy/app/views/layouts/mailer.text.erb
   test/dummy/app/views/pwa/manifest.json.erb
   test/dummy/app/views/pwa/service-worker.js
+  test/dummy/bin/bundler-audit
+  test/dummy/bin/ci
   test/dummy/bin/dev
   test/dummy/bin/rails
   test/dummy/bin/rake
@@ -46,7 +48,9 @@ DEFAULT_PLUGIN_FILES = %w(
   test/dummy/config.ru
   test/dummy/config/application.rb
   test/dummy/config/boot.rb
+  test/dummy/config/bundler-audit.yml
   test/dummy/config/cable.yml
+  test/dummy/config/ci.rb
   test/dummy/config/database.yml
   test/dummy/config/environment.rb
   test/dummy/config/environments/development.rb
@@ -141,6 +145,7 @@ class PluginGeneratorTest < Rails::Generators::TestCase
 
     run_generator
     assert_file ".git/HEAD", /main/
+    assert_file ".github/workflows/ci.yml", /branches: \[ main \]/
   ensure
     if !current_default_branch.strip.empty?
       `git config --global init.defaultBranch #{current_default_branch}`
@@ -156,6 +161,7 @@ class PluginGeneratorTest < Rails::Generators::TestCase
 
     run_generator
     assert_file ".git/HEAD", /master/
+    assert_file ".github/workflows/ci.yml", /branches: \[ master \]/
   ensure
     if current_default_branch && current_default_branch.strip.empty?
       `git config --global --unset init.defaultBranch`

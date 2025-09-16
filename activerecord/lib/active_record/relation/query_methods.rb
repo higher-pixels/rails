@@ -426,7 +426,7 @@ module ActiveRecord
     end
 
     def _select!(*fields) # :nodoc:
-      self.select_values |= fields
+      self.select_values += fields
       self
     end
 
@@ -510,7 +510,7 @@ module ActiveRecord
     #   # WITH RECURSIVE post_and_replies AS (
     #   #   (SELECT * FROM posts WHERE id = 42)
     #   #   UNION ALL
-    #   #   (SELECT * FROM posts JOIN posts_and_replies ON posts.in_reply_to_id = posts_and_replies.id)
+    #   #   (SELECT * FROM posts JOIN post_and_replies ON posts.in_reply_to_id = post_and_replies.id)
     #   # )
     #   # SELECT * FROM posts
     #
@@ -1213,6 +1213,7 @@ module ActiveRecord
     end
 
     def limit!(value) # :nodoc:
+      value = Integer(value) unless value.nil?
       self.limit_value = value
       self
     end
@@ -1299,13 +1300,13 @@ module ActiveRecord
     #
     #   users = User.readonly
     #   users.first.save
-    #   => ActiveRecord::ReadOnlyRecord: User is marked as readonly
+    #   # => ActiveRecord::ReadOnlyRecord: User is marked as readonly
     #
     # To make a readonly relation writable, pass +false+.
     #
     #   users.readonly(false)
     #   users.first.save
-    #   => true
+    #   # => true
     def readonly(value = true)
       spawn.readonly!(value)
     end
@@ -1320,7 +1321,7 @@ module ActiveRecord
     #
     #   user = User.strict_loading.first
     #   user.comments.to_a
-    #   => ActiveRecord::StrictLoadingViolationError
+    #   # => ActiveRecord::StrictLoadingViolationError
     def strict_loading(value = true)
       spawn.strict_loading!(value)
     end
@@ -1592,7 +1593,7 @@ module ActiveRecord
 
     # Returns the Arel object associated with the relation.
     def arel(aliases = nil) # :nodoc:
-      @arel ||= with_connection { |c| build_arel(c, aliases) }
+      @arel ||= build_arel(aliases)
     end
 
     def construct_join_dependency(associations, join_type) # :nodoc:
@@ -1626,7 +1627,7 @@ module ActiveRecord
           elsif opts.include?("?")
             parts = [build_bound_sql_literal(opts, rest)]
           else
-            parts = [model.sanitize_sql(rest.empty? ? opts : [opts, *rest])]
+            parts = [Arel.sql(model.sanitize_sql([opts, *rest]))]
           end
         when Hash
           opts = opts.transform_keys do |key|
@@ -1653,13 +1654,12 @@ module ActiveRecord
       end
       alias :build_having_clause :build_where_clause
 
-      def async!
+      def async! # :nodoc:
         @async = true
         self
       end
 
-    protected
-      def arel_columns(columns)
+      def arel_columns(columns) # :nodoc:
         columns.flat_map do |field|
           case field
           when Symbol, String
@@ -1747,14 +1747,14 @@ module ActiveRecord
         raise UnmodifiableRelation if @loaded || @arel
       end
 
-      def build_arel(connection, aliases = nil)
+      def build_arel(aliases)
         arel = Arel::SelectManager.new(table)
 
         build_joins(arel.join_sources, aliases)
 
         arel.where(where_clause.ast) unless where_clause.empty?
         arel.having(having_clause.ast) unless having_clause.empty?
-        arel.take(build_cast_value("LIMIT", connection.sanitize_limit(limit_value))) if limit_value
+        arel.take(build_cast_value("LIMIT", limit_value)) if limit_value
         arel.skip(build_cast_value("OFFSET", offset_value.to_i)) if offset_value
         arel.group(*arel_columns(group_values)) unless group_values.empty?
 
@@ -1985,7 +1985,7 @@ module ActiveRecord
       def arel_column(field)
         field = field.name if is_symbol = field.is_a?(Symbol)
 
-        field = model.attribute_aliases[field] || field.to_s
+        field = model.attribute_aliases[field] || field
         from = from_clause.name || from_clause.value
 
         if model.columns_hash.key?(field) && (!from || table_name_matches?(from))
@@ -1996,8 +1996,10 @@ module ActiveRecord
           yield field
         elsif Arel.arel_node?(field)
           field
+        elsif is_symbol
+          Arel.sql(model.adapter_class.quote_table_name(field), retryable: true)
         else
-          Arel.sql(is_symbol ? model.adapter_class.quote_table_name(field) : field)
+          Arel.sql(field)
         end
       end
 
@@ -2009,9 +2011,15 @@ module ActiveRecord
 
       def reverse_sql_order(order_query)
         if order_query.empty?
-          return [table[primary_key].desc] if primary_key
-          raise IrreversibleOrderError,
-            "Relation has no current order and table has no primary key to be used as default order"
+          if !_reverse_order_columns.empty?
+            return _reverse_order_columns.map { |column| table[column].desc }
+          end
+
+          raise IrreversibleOrderError, <<~MSG.squish
+            Relation has no order values, and #{model} has no order columns to use as a default.
+            Set at least one of `implicit_order_column`, or `primary_key` on the model when no
+            `order `is specified on the relation.
+          MSG
         end
 
         order_query.flat_map do |o|
@@ -2034,6 +2042,13 @@ module ActiveRecord
             o
           end
         end
+      end
+
+      def _reverse_order_columns
+        roc = []
+        roc << model.implicit_order_column if model.implicit_order_column
+        roc << model.primary_key if model.primary_key
+        roc.flatten.uniq.compact
       end
 
       def does_not_support_reverse?(order)

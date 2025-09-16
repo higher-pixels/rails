@@ -95,6 +95,47 @@ module ActiveRecord
         end
       end
 
+      def test_reconnect_after_bad_connection_on_check_version_with_0_return
+        db_config = ActiveRecord::Base.configurations.configs_for(env_name: "arunit", name: "primary")
+        connection = ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.new(db_config.configuration_hash.merge(connection_retries: 0))
+        connection.connect!
+
+        # mimic a connection that hasn't checked and cached the server version yet i.e. without a raw_connection
+        connection.pool.instance_variable_set(:@server_version, nil)
+        connection.raw_connection.stub(:server_version, 0) do
+          error = assert_raises ActiveRecord::ConnectionNotEstablished do
+            connection.reconnect!
+          end
+          assert_equal "Could not determine PostgreSQL version", error.message
+        end
+
+        # can reconnect after a bad connection
+        assert_nothing_raised do
+          connection.reconnect!
+        end
+      end
+
+      def test_reconnect_after_bad_connection_on_check_version_with_native_exception
+        db_config = ActiveRecord::Base.configurations.configs_for(env_name: "arunit", name: "primary")
+        connection = ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.new(db_config.configuration_hash.merge(connection_retries: 0))
+        connection.connect!
+
+        # mimic a connection that hasn't checked and cached the server version yet i.e. without a raw_connection
+        connection.pool.instance_variable_set(:@server_version, nil)
+        # https://github.com/ged/ruby-pg/commit/a565e153d4d05955342ad24d4845378eee956935
+        connection.raw_connection.stub(:server_version, -> { raise PG::ConnectionBad, "PQserverVersion() can't get server version" }) do
+          error = assert_raises ActiveRecord::ConnectionNotEstablished do
+            connection.reconnect!
+          end
+          assert_equal "PQserverVersion() can't get server version", error.message
+        end
+
+        # can reconnect after a bad connection
+        assert_nothing_raised do
+          connection.reconnect!
+        end
+      end
+
       def test_database_exists_returns_false_when_the_database_does_not_exist
         config = { database: "non_extant_database", adapter: "postgresql" }
         assert_not ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.database_exists?(config),
@@ -414,6 +455,22 @@ module ActiveRecord
         end
       end
 
+      def test_index_keyword_column_name
+        with_example_table("timestamp integer") do
+          @connection.add_index "ex", :timestamp, name: "keyword"
+          index = @connection.indexes("ex").find { |idx| idx.name == "keyword" }
+          assert_equal ["timestamp"], index.columns
+        end
+      end
+
+      def test_index_escaped_quotes_column_name
+        with_example_table(%{"I""like""quotes" integer}) do
+          @connection.add_index "ex", :"I\"like\"quotes", name: "quotes"
+          index = @connection.indexes("ex").find { |idx| idx.name == "quotes" }
+          assert_equal ["I\"like\"quotes"], index.columns
+        end
+      end
+
       def test_columns_for_distinct_zero_orders
         assert_equal "posts.id",
           @connection.columns_for_distinct("posts.id", [])
@@ -596,7 +653,7 @@ module ActiveRecord
         @connection.execute("DROP EXTENSION IF EXISTS hstore")
       end
 
-      def test_ignores_warnings_when_behaviour_ignore
+      def test_ignores_warnings_when_behavior_ignore
         with_db_warnings_action(:ignore) do
           # libpq prints a warning to stderr from C, so we need to stub
           # the whole file descriptors, not just Ruby's $stdout/$stderr.
@@ -608,7 +665,7 @@ module ActiveRecord
         end
       end
 
-      def test_logs_warnings_when_behaviour_log
+      def test_logs_warnings_when_behavior_log
         with_db_warnings_action(:log) do
           sql_warning = "[ActiveRecord::SQLWarning] PostgreSQL SQL warning (01000)"
 
@@ -618,7 +675,7 @@ module ActiveRecord
         end
       end
 
-      def test_raises_warnings_when_behaviour_raise
+      def test_raises_warnings_when_behavior_raise
         with_db_warnings_action(:raise) do
           error = assert_raises(ActiveRecord::SQLWarning) do
             @connection.execute("do $$ BEGIN RAISE WARNING 'PostgreSQL SQL warning'; END; $$")
@@ -627,7 +684,7 @@ module ActiveRecord
         end
       end
 
-      def test_reports_when_behaviour_report
+      def test_reports_when_behavior_report
         with_db_warnings_action(:report) do
           error_reporter = ActiveSupport::ErrorReporter.new
           subscriber = ActiveSupport::ErrorReporter::TestHelper::ErrorSubscriber.new
@@ -643,7 +700,7 @@ module ActiveRecord
         end
       end
 
-      def test_warnings_behaviour_can_be_customized_with_a_proc
+      def test_warnings_behavior_can_be_customized_with_a_proc
         warning_message = nil
         warning_level = nil
         warning_action = ->(warning) do

@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON https://guides.rubyonrails.org.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.rubyonrails.org>.**
 
 Action View Overview
 ====================
@@ -523,6 +523,8 @@ view, starting with a value of `0` on the first render.
 
 This also works when the local variable name is changed using the `as:` option.
 So if you did `as: :item`, the counter variable would be `item_counter`.
+
+NOTE: When rendering collections with instances of different models, the counter variable increments for each partial, regardless of the class of the model being rendered.
 
 Note: The following two sections, [Strict Locals](#strict-locals) and [Local
 Assigns with Pattern Matching](#local-assigns-with-pattern-matching) are more

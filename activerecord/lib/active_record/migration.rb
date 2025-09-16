@@ -148,11 +148,10 @@ module ActiveRecord
     include ActiveSupport::ActionableError
 
     action "Run pending migrations" do
-      ActiveRecord::Tasks::DatabaseTasks.migrate
+      ActiveRecord::Tasks::DatabaseTasks.migrate_all
 
       if ActiveRecord.dump_schema_after_migration
-        connection = ActiveRecord::Tasks::DatabaseTasks.migration_connection
-        ActiveRecord::Tasks::DatabaseTasks.dump_schema(connection.pool.db_config)
+        ActiveRecord::Tasks::DatabaseTasks.dump_all
       end
     end
 
@@ -571,6 +570,7 @@ module ActiveRecord
   class Migration
     autoload :CommandRecorder, "active_record/migration/command_recorder"
     autoload :Compatibility, "active_record/migration/compatibility"
+    autoload :DefaultSchemaVersionsFormatter, "active_record/migration/default_schema_versions_formatter"
     autoload :JoinTable, "active_record/migration/join_table"
     autoload :ExecutionStrategy, "active_record/migration/execution_strategy"
     autoload :DefaultStrategy, "active_record/migration/default_strategy"
@@ -747,7 +747,7 @@ module ActiveRecord
       private
         def any_schema_needs_update?
           !db_configs_in_current_env.all? do |db_config|
-            Tasks::DatabaseTasks.schema_up_to_date?(db_config, ActiveRecord.schema_format)
+            Tasks::DatabaseTasks.schema_up_to_date?(db_config)
           end
         end
 
@@ -781,6 +781,11 @@ module ActiveRecord
             Base.connection_handler.clear_all_connections!(:all)
             system("bin/rails db:test:prepare")
           end
+        end
+
+        def respond_to_missing?(method, include_private = false)
+          return false if nearest_delegate == delegate
+          nearest_delegate.respond_to?(method, include_private)
         end
     end
 
@@ -1170,6 +1175,10 @@ module ActiveRecord
       def command_recorder
         CommandRecorder.new(connection)
       end
+
+      def respond_to_missing?(method, include_private = false)
+        execution_strategy.respond_to?(method, include_private) || super
+      end
   end
 
   # MigrationProxy is used to defer loading of the actual migration classes
@@ -1529,7 +1538,8 @@ module ActiveRecord
         return if down? && !migrated.include?(migration.version.to_i)
         return if up?   &&  migrated.include?(migration.version.to_i)
 
-        Base.logger.info "Migrating to #{migration.name} (#{migration.version})" if Base.logger
+        message = up? ? "Migrating to" : "Reverting"
+        Base.logger.info "#{message} #{migration.name} (#{migration.version})" if Base.logger
 
         ddl_transaction(migration) do
           migration.migrate(@direction)
