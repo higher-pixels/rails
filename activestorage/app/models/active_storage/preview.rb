@@ -95,10 +95,11 @@ class ActiveStorage::Preview
     end
   end
 
+  def processed?
+    image.attached?
+  end
+
   private
-    def processed?
-      image.attached?
-    end
 
     def process
       previewer.preview(service_name: blob.service_name) do |attachable|
